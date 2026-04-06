@@ -1,0 +1,172 @@
+import SwiftUI
+import CoreLocation
+
+// MARK: - Weather Condition
+enum WeatherCondition: String {
+    case sunny      = "Sunny"
+    case cloudy     = "Cloudy"
+    case rainy      = "Rainy"
+    case snowy      = "Snowy"
+    case windy      = "Windy"
+    case stormy     = "Stormy"
+    case partlyCloudy = "Partly Cloudy"
+    case foggy      = "Foggy"
+}
+
+// MARK: - Location Theme
+struct LocationTheme {
+    let regionName: String
+    let label: String           // e.g. "Beach Vibes"
+    let emoji: String           // main decorative icon
+    let gradientColors: [Color]
+    let iconMap: [WeatherCondition: String]  // condition → themed emoji
+
+    func icon(for condition: WeatherCondition) -> String {
+        iconMap[condition] ?? "🌡️"
+    }
+}
+
+// MARK: - Theme Definitions
+extension LocationTheme {
+    static let losAngeles = LocationTheme(
+        regionName: "Los Angeles",
+        label: "Beach Vibes",
+        emoji: "🌴",
+        gradientColors: [
+            Color(red: 0.12, green: 0.65, blue: 0.85),
+            Color(red: 0.94, green: 0.55, blue: 0.27),
+            Color(red: 0.97, green: 0.81, blue: 0.42)
+        ],
+        iconMap: [
+            .sunny:         "🌴",
+            .partlyCloudy:  "⛱️",
+            .cloudy:        "🌊",
+            .rainy:         "🌦️",
+            .windy:         "🏄",
+            .stormy:        "⚡",
+            .snowy:         "❄️",
+            .foggy:         "🌫️"
+        ]
+    )
+
+    static let seattle = LocationTheme(
+        regionName: "Seattle",
+        label: "Coffee Weather",
+        emoji: "☕",
+        gradientColors: [
+            Color(red: 0.17, green: 0.29, blue: 0.43),
+            Color(red: 0.30, green: 0.43, blue: 0.56),
+            Color(red: 0.49, green: 0.61, blue: 0.71)
+        ],
+        iconMap: [
+            .sunny:         "☀️",
+            .partlyCloudy:  "🌤️",
+            .cloudy:        "☁️",
+            .rainy:         "☔",
+            .windy:         "🌬️",
+            .stormy:        "⛈️",
+            .snowy:         "🌨️",
+            .foggy:         "☕"
+        ]
+    )
+
+    static let newYork = LocationTheme(
+        regionName: "New York",
+        label: "City Skyline",
+        emoji: "🏙️",
+        gradientColors: [
+            Color(red: 0.08, green: 0.08, blue: 0.18),
+            Color(red: 0.18, green: 0.27, blue: 0.46),
+            Color(red: 0.32, green: 0.43, blue: 0.67)
+        ],
+        iconMap: [
+            .sunny:         "🌇",
+            .partlyCloudy:  "🏙️",
+            .cloudy:        "🌆",
+            .rainy:         "🌧️",
+            .windy:         "💨",
+            .stormy:        "⛈️",
+            .snowy:         "🌨️",
+            .foggy:         "🌁"
+        ]
+    )
+
+    static let alaska = LocationTheme(
+        regionName: "Alaska",
+        label: "Polar Winds",
+        emoji: "🐻‍❄️",
+        gradientColors: [
+            Color(red: 0.04, green: 0.11, blue: 0.21),
+            Color(red: 0.09, green: 0.30, blue: 0.43),
+            Color(red: 0.29, green: 0.54, blue: 0.67)
+        ],
+        iconMap: [
+            .sunny:         "🌅",
+            .partlyCloudy:  "🌤️",
+            .cloudy:        "☁️",
+            .rainy:         "🌧️",
+            .windy:         "🌬️",
+            .stormy:        "🌪️",
+            .snowy:         "🐻‍❄️",
+            .foggy:         "🌫️"
+        ]
+    )
+
+    static let arizona = LocationTheme(
+        regionName: "Arizona",
+        label: "Desert Heat",
+        emoji: "🌵",
+        gradientColors: [
+            Color(red: 0.63, green: 0.21, blue: 0.06),
+            Color(red: 0.85, green: 0.42, bottom: 0.11),
+            Color(red: 0.96, green: 0.72, blue: 0.29)
+        ],
+        iconMap: [
+            .sunny:         "🌵",
+            .partlyCloudy:  "🌤️",
+            .cloudy:        "⛅",
+            .rainy:         "🌦️",
+            .windy:         "🏜️",
+            .stormy:        "⛈️",
+            .snowy:         "❄️",
+            .foggy:         "🌫️"
+        ]
+    )
+
+    /// Detect a theme from a CLPlacemark
+    static func theme(for placemark: CLPlacemark) -> LocationTheme {
+        let state = placemark.administrativeArea ?? ""
+        let city  = placemark.locality ?? ""
+        let combined = "\(city) \(state)".lowercased()
+
+        switch true {
+        case combined.contains("los angeles") || combined.contains("santa monica") || combined.contains("malibu"):
+            return .losAngeles
+        case combined.contains("seattle") || combined.contains("tacoma") || combined.contains("olympia"):
+            return .seattle
+        case combined.contains("new york") || combined.contains("brooklyn") || combined.contains("manhattan"):
+            return .newYork
+        case state == "AK":
+            return .alaska
+        case state == "AZ":
+            return .arizona
+        // Add more regions as needed
+        default:
+            // Fallback: pick by latitude (very rough climate heuristic)
+            let lat = placemark.location?.coordinate.latitude ?? 40
+            if lat > 60 { return .alaska }
+            if lat < 33 { return .arizona }
+            return .newYork
+        }
+    }
+
+    // All themes, for the demo picker
+    static let all: [LocationTheme] = [.losAngeles, .seattle, .newYork, .alaska, .arizona]
+}
+
+// Swift doesn't allow `bottom:` — fix the Arizona initializer
+private extension Color {
+    init(red: Double, bottom: Double, blue: Double) {
+        self.init(red: red, green: bottom, blue: blue)
+    }
+}
