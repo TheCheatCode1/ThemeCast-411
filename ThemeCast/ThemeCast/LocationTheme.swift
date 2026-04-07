@@ -118,7 +118,7 @@ extension LocationTheme {
         emoji: "🌵",
         gradientColors: [
             Color(red: 0.63, green: 0.21, blue: 0.06),
-            Color(red: 0.85, green: 0.42, bottom: 0.11),
+            Color(red: 0.85, green: 0.42, blue: 0.11),
             Color(red: 0.96, green: 0.72, blue: 0.29)
         ],
         iconMap: [
@@ -162,11 +162,4 @@ extension LocationTheme {
 
     // All themes, for the demo picker
     static let all: [LocationTheme] = [.losAngeles, .seattle, .newYork, .alaska, .arizona]
-}
-
-// Swift doesn't allow `bottom:` — fix the Arizona initializer
-private extension Color {
-    init(red: Double, bottom: Double, blue: Double) {
-        self.init(red: red, green: bottom, blue: blue)
-    }
 }

@@ -37,7 +37,7 @@ final class WeatherViewModel: ObservableObject {
 
         // Forward location errors
         locationManager.$error
-            .compactMap { $0?.errorDescription }
+            .map { $0?.errorDescription }
             .assign(to: &$errorMessage)
 
         // Load demo data on first launch
