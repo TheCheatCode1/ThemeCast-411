@@ -11,6 +11,9 @@ final class WeatherViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
 
+    // NEW: °F / °C toggle
+    @Published var isCelsius: Bool = false
+
     // MARK: Demo mode (city picker)
     @Published var selectedThemeIndex: Int = 0 {
         didSet { loadDemo() }
@@ -27,7 +30,6 @@ final class WeatherViewModel: ObservableObject {
         self.locationManager = locationManager
         self.weatherService  = weatherService
 
-        // React to placemark changes from the location manager
         locationManager.$placemark
             .compactMap { $0 }
             .sink { [weak self] placemark in
@@ -35,12 +37,10 @@ final class WeatherViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Forward location errors
         locationManager.$error
             .map { $0?.errorDescription }
             .assign(to: &$errorMessage)
 
-        // Load demo data on first launch
         loadDemo()
     }
 
@@ -48,6 +48,16 @@ final class WeatherViewModel: ObservableObject {
 
     func requestUserLocation() {
         locationManager.requestLocation()
+    }
+
+    // NEW: convert any Fahrenheit value to °C if needed
+    func displayTemp(_ fahrenheit: Int) -> String {
+        if isCelsius {
+            let celsius = (fahrenheit - 32) * 5 / 9
+            return "\(celsius)°C"
+        } else {
+            return "\(fahrenheit)°F"
+        }
     }
 
     // MARK: - Private
@@ -97,12 +107,12 @@ final class WeatherViewModel: ObservableObject {
 
     var formattedTemperature: String {
         guard let w = weather else { return "--°" }
-        return "\(w.temperature)°"
+        return displayTemp(w.temperature)
     }
 
     var formattedHighLow: String {
         guard let w = weather else { return "" }
-        return "H: \(w.high)°  ·  L: \(w.low)°"
+        return "H: \(displayTemp(w.high))  ·  L: \(displayTemp(w.low))"
     }
 
     var themedMainIcon: String {
