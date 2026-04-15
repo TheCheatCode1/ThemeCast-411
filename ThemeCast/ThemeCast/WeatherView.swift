@@ -17,6 +17,15 @@ struct WeatherView: View {
             // Content
             VStack(spacing: 0) {
                 topBar
+
+                // NEW: error banner shows up right below top bar
+                if let error = vm.errorMessage {
+                    ErrorBanner(message: error) {
+                        vm.errorMessage = nil
+                    }
+                    .padding(.top, 8)
+                }
+
                 Spacer()
                 mainWeatherBlock
                 Spacer()
@@ -39,16 +48,28 @@ struct WeatherView: View {
                 Image(systemName: "location.fill")
                     .font(.system(size: 16, weight: .medium))
             }
+
             Spacer()
+
             Text("ThemeCast")
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .tracking(1.5)
+
             Spacer()
+
+            // NEW: °F / °C toggle button
             Button {
-                // Future: settings sheet
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    vm.isCelsius.toggle()
+                }
             } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 16, weight: .medium))
+                Text(vm.isCelsius ? "°C" : "°F")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.white.opacity(0.2))
+                    .clipShape(Capsule())
             }
         }
         .foregroundColor(.white.opacity(0.85))
@@ -101,9 +122,10 @@ struct WeatherView: View {
             // Extra stats row
             if let w = vm.weather {
                 HStack(spacing: 24) {
-                    WeatherStatView(icon: "humidity.fill",    value: "\(w.humidity)%",    label: "Humidity")
-                    WeatherStatView(icon: "wind",              value: "\(w.windSpeed) mph", label: "Wind")
-                    WeatherStatView(icon: "thermometer.medium", value: "\(w.feelsLike)°",  label: "Feels like")
+                    WeatherStatView(icon: "humidity.fill",    value: "\(w.humidity)%",       label: "Humidity")
+                    WeatherStatView(icon: "wind",              value: "\(w.windSpeed) mph",   label: "Wind")
+                    // NEW: feels like also uses displayTemp
+                    WeatherStatView(icon: "thermometer.medium", value: vm.displayTemp(w.feelsLike), label: "Feels like")
                 }
                 .padding(.top, 14)
             }
