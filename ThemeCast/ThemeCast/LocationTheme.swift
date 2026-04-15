@@ -16,10 +16,10 @@ enum WeatherCondition: String {
 // MARK: - Location Theme
 struct LocationTheme {
     let regionName: String
-    let label: String           // e.g. "Beach Vibes"
-    let emoji: String           // main decorative icon
+    let label: String
+    let emoji: String
     let gradientColors: [Color]
-    let iconMap: [WeatherCondition: String]  // condition → themed emoji
+    let iconMap: [WeatherCondition: String]
 
     func icon(for condition: WeatherCondition) -> String {
         iconMap[condition] ?? "🌡️"
@@ -133,6 +133,50 @@ extension LocationTheme {
         ]
     )
 
+    // NEW: Miami
+    static let miami = LocationTheme(
+        regionName: "Miami",
+        label: "Tropical Vibes",
+        emoji: "🌺",
+        gradientColors: [
+            Color(red: 0.00, green: 0.60, blue: 0.70),
+            Color(red: 0.94, green: 0.35, blue: 0.55),
+            Color(red: 0.99, green: 0.75, blue: 0.30)
+        ],
+        iconMap: [
+            .sunny:         "🌺",
+            .partlyCloudy:  "🌴",
+            .cloudy:        "🌊",
+            .rainy:         "🌧️",
+            .windy:         "🏖️",
+            .stormy:        "🌀",
+            .snowy:         "❄️",
+            .foggy:         "🌫️"
+        ]
+    )
+
+    // NEW: Chicago
+    static let chicago = LocationTheme(
+        regionName: "Chicago",
+        label: "Windy City",
+        emoji: "🌬️",
+        gradientColors: [
+            Color(red: 0.10, green: 0.15, blue: 0.30),
+            Color(red: 0.20, green: 0.35, blue: 0.55),
+            Color(red: 0.40, green: 0.55, blue: 0.75)
+        ],
+        iconMap: [
+            .sunny:         "🏛️",
+            .partlyCloudy:  "🌤️",
+            .cloudy:        "☁️",
+            .rainy:         "🌂",
+            .windy:         "🌬️",
+            .stormy:        "⛈️",
+            .snowy:         "🌨️",
+            .foggy:         "🌁"
+        ]
+    )
+
     /// Detect a theme from a CLPlacemark
     static func theme(for placemark: CLPlacemark) -> LocationTheme {
         let state = placemark.administrativeArea ?? ""
@@ -150,9 +194,11 @@ extension LocationTheme {
             return .alaska
         case state == "AZ":
             return .arizona
-        // Add more regions as needed
+        case combined.contains("miami") || combined.contains("miami beach") || combined.contains("coral gables"):
+            return .miami
+        case combined.contains("chicago") || combined.contains("evanston"):
+            return .chicago
         default:
-            // Fallback: pick by latitude (very rough climate heuristic)
             let lat = placemark.location?.coordinate.latitude ?? 40
             if lat > 60 { return .alaska }
             if lat < 33 { return .arizona }
@@ -161,5 +207,5 @@ extension LocationTheme {
     }
 
     // All themes, for the demo picker
-    static let all: [LocationTheme] = [.losAngeles, .seattle, .newYork, .alaska, .arizona]
+    static let all: [LocationTheme] = [.losAngeles, .seattle, .newYork, .alaska, .arizona, .miami, .chicago]
 }
