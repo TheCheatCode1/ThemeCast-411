@@ -34,10 +34,7 @@ protocol WeatherServiceProtocol {
 final class MockWeatherService: WeatherServiceProtocol {
 
     func fetchWeather(for location: CLLocation, cityName: String) async throws -> WeatherData {
-        // Simulate network delay
         try await Task.sleep(nanoseconds: 800_000_000)
-
-        // Return deterministic mock data based on city name
         return mockData(cityName: cityName)
     }
 
@@ -108,6 +105,37 @@ final class MockWeatherService: WeatherServiceProtocol {
                 ],
                 cityName: "Arizona"
             )
+
+        // NEW: Miami
+        case "Miami":
+            return WeatherData(
+                temperature: 88, feelsLike: 96, high: 92, low: 78,
+                condition: .sunny, humidity: 85, windSpeed: 12,
+                forecast: [
+                    DayForecast(dayName: "Mon", condition: .sunny,        high: 90, low: 79),
+                    DayForecast(dayName: "Tue", condition: .stormy,       high: 85, low: 76),
+                    DayForecast(dayName: "Wed", condition: .rainy,        high: 83, low: 75),
+                    DayForecast(dayName: "Thu", condition: .sunny,        high: 91, low: 78),
+                    DayForecast(dayName: "Fri", condition: .partlyCloudy, high: 89, low: 77),
+                ],
+                cityName: "Miami"
+            )
+
+        // NEW: Chicago
+        case "Chicago":
+            return WeatherData(
+                temperature: 45, feelsLike: 38, high: 50, low: 36,
+                condition: .windy, humidity: 62, windSpeed: 28,
+                forecast: [
+                    DayForecast(dayName: "Mon", condition: .windy,        high: 47, low: 34),
+                    DayForecast(dayName: "Tue", condition: .cloudy,       high: 49, low: 37),
+                    DayForecast(dayName: "Wed", condition: .rainy,        high: 44, low: 33),
+                    DayForecast(dayName: "Thu", condition: .snowy,        high: 38, low: 28),
+                    DayForecast(dayName: "Fri", condition: .partlyCloudy, high: 52, low: 38),
+                ],
+                cityName: "Chicago"
+            )
+
         default:
             return WeatherData(
                 temperature: 68, feelsLike: 66, high: 72, low: 58,
