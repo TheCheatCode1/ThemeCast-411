@@ -2,11 +2,11 @@ import SwiftUI
 
 struct WeatherView: View {
     @ObservedObject var vm: WeatherViewModel
-    @State private var showSettings = false  // NEW
+    @State private var showSettings = false
+    @State private var showForecast = false
 
     var body: some View {
         ZStack {
-            // Dynamic background gradient
             LinearGradient(
                 colors: vm.theme.gradientColors,
                 startPoint: .topLeading,
@@ -15,11 +15,9 @@ struct WeatherView: View {
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.7), value: vm.theme.regionName)
 
-            // Content
             VStack(spacing: 0) {
                 topBar
 
-                // Error banner
                 if let error = vm.errorMessage {
                     ErrorBanner(message: error) {
                         vm.errorMessage = nil
@@ -37,9 +35,11 @@ struct WeatherView: View {
         }
         .statusBarHidden(false)
         .preferredColorScheme(.dark)
-        // NEW: settings sheet
         .sheet(isPresented: $showSettings) {
             SettingsView(vm: vm)
+        }
+        .sheet(isPresented: $showForecast) {
+            ForecastView(vm: vm)
         }
     }
 
@@ -63,7 +63,6 @@ struct WeatherView: View {
             Spacer()
 
             HStack(spacing: 12) {
-                // °F / °C toggle
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         vm.isCelsius.toggle()
@@ -78,7 +77,6 @@ struct WeatherView: View {
                         .clipShape(Capsule())
                 }
 
-                // Settings button — now opens the sheet
                 Button {
                     showSettings = true
                 } label: {
@@ -102,7 +100,6 @@ struct WeatherView: View {
                 .textCase(.uppercase)
                 .foregroundColor(.white.opacity(0.75))
 
-            // Floating themed icon
             Text(vm.isLoading ? "🌡️" : vm.themedMainIcon)
                 .font(.system(size: 96))
                 .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 6)
@@ -122,7 +119,6 @@ struct WeatherView: View {
                 .foregroundColor(.white.opacity(0.55))
                 .padding(.top, 2)
 
-            // Theme label pill
             Text("\(vm.theme.label)  \(vm.theme.emoji)")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .tracking(1.2)
@@ -134,7 +130,6 @@ struct WeatherView: View {
                 .clipShape(Capsule())
                 .padding(.top, 10)
 
-            // Extra stats row
             if let w = vm.weather {
                 HStack(spacing: 24) {
                     WeatherStatView(icon: "humidity.fill",     value: "\(w.humidity)%",            label: "Humidity")
@@ -223,9 +218,13 @@ struct WeatherView: View {
     private var bottomNav: some View {
         HStack(spacing: 0) {
             NavButton(icon: "sun.max.fill",  label: "Today",    isActive: true)
-            NavButton(icon: "calendar",       label: "Forecast", isActive: false)
+            NavButton(icon: "calendar",       label: "Forecast", isActive: false) {
+                showForecast = true
+            }
             NavButton(icon: "map.fill",       label: "Map",      isActive: false)
-            NavButton(icon: "gearshape.fill", label: "Settings", isActive: false)
+            NavButton(icon: "gearshape.fill", label: "Settings", isActive: false) {
+                showSettings = true
+            }
         }
         .padding(.top, 8)
         .padding(.bottom, 20)
