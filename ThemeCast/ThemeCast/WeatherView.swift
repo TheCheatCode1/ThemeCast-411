@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WeatherView: View {
     @ObservedObject var vm: WeatherViewModel
+    @State private var showSettings = false  // NEW
 
     var body: some View {
         ZStack {
@@ -18,7 +19,7 @@ struct WeatherView: View {
             VStack(spacing: 0) {
                 topBar
 
-                // NEW: error banner shows up right below top bar
+                // Error banner
                 if let error = vm.errorMessage {
                     ErrorBanner(message: error) {
                         vm.errorMessage = nil
@@ -36,6 +37,10 @@ struct WeatherView: View {
         }
         .statusBarHidden(false)
         .preferredColorScheme(.dark)
+        // NEW: settings sheet
+        .sheet(isPresented: $showSettings) {
+            SettingsView(vm: vm)
+        }
     }
 
     // MARK: - Top bar
@@ -57,19 +62,29 @@ struct WeatherView: View {
 
             Spacer()
 
-            // NEW: °F / °C toggle button
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    vm.isCelsius.toggle()
+            HStack(spacing: 12) {
+                // °F / °C toggle
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        vm.isCelsius.toggle()
+                    }
+                } label: {
+                    Text(vm.isCelsius ? "°C" : "°F")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.white.opacity(0.2))
+                        .clipShape(Capsule())
                 }
-            } label: {
-                Text(vm.isCelsius ? "°C" : "°F")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.white.opacity(0.2))
-                    .clipShape(Capsule())
+
+                // Settings button — now opens the sheet
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 16, weight: .medium))
+                }
             }
         }
         .foregroundColor(.white.opacity(0.85))
@@ -122,9 +137,8 @@ struct WeatherView: View {
             // Extra stats row
             if let w = vm.weather {
                 HStack(spacing: 24) {
-                    WeatherStatView(icon: "humidity.fill",    value: "\(w.humidity)%",       label: "Humidity")
-                    WeatherStatView(icon: "wind",              value: "\(w.windSpeed) mph",   label: "Wind")
-                    // NEW: feels like also uses displayTemp
+                    WeatherStatView(icon: "humidity.fill",     value: "\(w.humidity)%",            label: "Humidity")
+                    WeatherStatView(icon: "wind",               value: "\(w.windSpeed) mph",        label: "Wind")
                     WeatherStatView(icon: "thermometer.medium", value: vm.displayTemp(w.feelsLike), label: "Feels like")
                 }
                 .padding(.top, 14)
@@ -208,10 +222,10 @@ struct WeatherView: View {
 
     private var bottomNav: some View {
         HStack(spacing: 0) {
-            NavButton(icon: "sun.max.fill",    label: "Today",    isActive: true)
-            NavButton(icon: "calendar",         label: "Forecast", isActive: false)
-            NavButton(icon: "map.fill",         label: "Map",      isActive: false)
-            NavButton(icon: "gearshape.fill",   label: "Settings", isActive: false)
+            NavButton(icon: "sun.max.fill",  label: "Today",    isActive: true)
+            NavButton(icon: "calendar",       label: "Forecast", isActive: false)
+            NavButton(icon: "map.fill",       label: "Map",      isActive: false)
+            NavButton(icon: "gearshape.fill", label: "Settings", isActive: false)
         }
         .padding(.top, 8)
         .padding(.bottom, 20)
