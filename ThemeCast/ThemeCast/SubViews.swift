@@ -53,24 +53,29 @@ struct WeatherStatView: View {
     }
 }
 
-// MARK: - Bottom Nav Button
+// MARK: - Bottom Nav Button (updated with optional action)
 
 struct NavButton: View {
     let icon: String
     let label: String
     let isActive: Bool
+    var action: (() -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-            Text(label)
-                .font(.system(size: 9, weight: .medium))
-                .tracking(0.3)
+        Button {
+            action?()
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                Text(label)
+                    .font(.system(size: 9, weight: .medium))
+                    .tracking(0.3)
+            }
+            .foregroundColor(isActive ? .white : .white.opacity(0.4))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
         }
-        .foregroundColor(isActive ? .white : .white.opacity(0.4))
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
     }
 }
 
