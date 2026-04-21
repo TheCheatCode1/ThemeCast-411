@@ -4,9 +4,10 @@ struct WeatherView: View {
     @ObservedObject var vm: WeatherViewModel
     @State private var showSettings = false
     @State private var showForecast = false
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             LinearGradient(
                 colors: vm.theme.gradientColors,
                 startPoint: .topLeading,
@@ -17,6 +18,7 @@ struct WeatherView: View {
 
             VStack(spacing: 0) {
                 topBar
+                searchField
 
                 if let error = vm.errorMessage {
                     ErrorBanner(message: error) {
@@ -31,6 +33,11 @@ struct WeatherView: View {
                 forecastCard
                 cityPicker
                 bottomNav
+            }
+
+            // Search results overlay on top of everything
+            if !vm.searchResults.isEmpty {
+                searchResultsOverlay
             }
         }
         .statusBarHidden(false)
@@ -88,6 +95,95 @@ struct WeatherView: View {
         .foregroundColor(.white.opacity(0.85))
         .padding(.horizontal, 24)
         .padding(.top, 12)
+    }
+
+    // MARK: - Search field
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.white.opacity(0.6))
+                .font(.system(size: 14))
+
+            TextField("Search city...", text: $vm.searchText)
+                .foregroundColor(.white)
+                .font(.system(size: 14))
+                .autocorrectionDisabled()
+                .focused($isSearchFocused)
+                .onChange(of: vm.searchText) {
+                    vm.searchCity()
+                }
+                .onSubmit {
+                    vm.searchCity()
+                }
+
+            if !vm.searchText.isEmpty {
+                Button {
+                    vm.searchText = ""
+                    vm.searchResults = []
+                    isSearchFocused = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.white.opacity(0.6))
+                        .font(.system(size: 14))
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.white.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+    }
+
+    // MARK: - Search results overlay
+
+    private var searchResultsOverlay: some View {
+        // Position below the top bar + search field (~90pt from top)
+        VStack {
+            Spacer().frame(height: 90)
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(vm.searchResults) { city in
+                        Button {
+                            vm.selectCity(city)
+                            isSearchFocused = false
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(city.name)
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundColor(.white)
+                                    Text(city.admin.isEmpty ? city.country : "\(city.admin), \(city.country)")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.white.opacity(0.6))
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white.opacity(0.4))
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                        }
+                        if city.id != vm.searchResults.last?.id {
+                            Divider().background(.white.opacity(0.15))
+                        }
+                    }
+                }
+            }
+            .frame(maxHeight: 300)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 4)
+            .padding(.horizontal, 16)
+
+            Spacer()
+        }
+        .zIndex(10)
+        .transition(.opacity)
     }
 
     // MARK: - Main weather block

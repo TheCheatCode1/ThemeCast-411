@@ -23,171 +23,134 @@ struct DayForecast: Identifiable {
     let low: Int
 }
 
+// MARK: - City Search Result
+
+struct CitySearchResult: Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let country: String
+    let admin: String  // state/region
+    let latitude: Double
+    let longitude: Double
+
+    var displayName: String {
+        if admin.isEmpty {
+            return "\(name), \(country)"
+        }
+        return "\(name), \(admin), \(country)"
+    }
+}
+
 // MARK: - Weather Service Protocol
 
-protocol WeatherServiceProtocol {
+protocol WeatherServiceProtocol: Sendable {
     func fetchWeather(for location: CLLocation, cityName: String) async throws -> WeatherData
+    func searchCities(query: String) async throws -> [CitySearchResult]
 }
 
-// MARK: - Mock Weather Service (replace with WeatherKit in production)
+// MARK: - Open-Meteo Weather Service (free, no API key needed)
 
-final class MockWeatherService: WeatherServiceProtocol {
+final class OpenMeteoWeatherService: WeatherServiceProtocol {
 
     func fetchWeather(for location: CLLocation, cityName: String) async throws -> WeatherData {
-        try await Task.sleep(nanoseconds: 800_000_000)
-        return mockData(cityName: cityName)
-    }
+        let lat = location.coordinate.latitude
+        let lon = location.coordinate.longitude
+        let urlString = "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=6"
 
-    private func mockData(cityName: String) -> WeatherData {
-        switch cityName {
-        case "Los Angeles":
-            return WeatherData(
-                temperature: 74, feelsLike: 76, high: 79, low: 62,
-                condition: .sunny, humidity: 38, windSpeed: 8,
-                forecast: [
-                    DayForecast(dayName: "Mon", condition: .sunny,        high: 77, low: 63),
-                    DayForecast(dayName: "Tue", condition: .sunny,        high: 75, low: 61),
-                    DayForecast(dayName: "Wed", condition: .partlyCloudy, high: 70, low: 59),
-                    DayForecast(dayName: "Thu", condition: .sunny,        high: 78, low: 62),
-                    DayForecast(dayName: "Fri", condition: .sunny,        high: 80, low: 64),
-                ],
-                cityName: "Los Angeles"
-            )
-        case "Seattle":
-            return WeatherData(
-                temperature: 52, feelsLike: 49, high: 55, low: 46,
-                condition: .rainy, humidity: 82, windSpeed: 14,
-                forecast: [
-                    DayForecast(dayName: "Mon", condition: .rainy,        high: 51, low: 45),
-                    DayForecast(dayName: "Tue", condition: .cloudy,       high: 53, low: 46),
-                    DayForecast(dayName: "Wed", condition: .partlyCloudy, high: 55, low: 47),
-                    DayForecast(dayName: "Thu", condition: .rainy,        high: 49, low: 43),
-                    DayForecast(dayName: "Fri", condition: .partlyCloudy, high: 58, low: 48),
-                ],
-                cityName: "Seattle"
-            )
-        case "New York":
-            return WeatherData(
-                temperature: 61, feelsLike: 58, high: 65, low: 52,
-                condition: .partlyCloudy, humidity: 55, windSpeed: 18,
-                forecast: [
-                    DayForecast(dayName: "Mon", condition: .partlyCloudy, high: 63, low: 53),
-                    DayForecast(dayName: "Tue", condition: .sunny,        high: 68, low: 55),
-                    DayForecast(dayName: "Wed", condition: .rainy,        high: 58, low: 50),
-                    DayForecast(dayName: "Thu", condition: .windy,        high: 55, low: 48),
-                    DayForecast(dayName: "Fri", condition: .sunny,        high: 70, low: 57),
-                ],
-                cityName: "New York"
-            )
-        case "Alaska":
-            return WeatherData(
-                temperature: 14, feelsLike: 4, high: 18, low: 4,
-                condition: .snowy, humidity: 70, windSpeed: 22,
-                forecast: [
-                    DayForecast(dayName: "Mon", condition: .snowy,  high: 12, low: 2),
-                    DayForecast(dayName: "Tue", condition: .cloudy, high: 16, low: 5),
-                    DayForecast(dayName: "Wed", condition: .snowy,  high: 10, low: 0),
-                    DayForecast(dayName: "Thu", condition: .windy,  high: 8,  low: -2),
-                    DayForecast(dayName: "Fri", condition: .cloudy, high: 20, low: 7),
-                ],
-                cityName: "Alaska"
-            )
-        case "Arizona":
-            return WeatherData(
-                temperature: 97, feelsLike: 105, high: 104, low: 80,
-                condition: .sunny, humidity: 12, windSpeed: 6,
-                forecast: [
-                    DayForecast(dayName: "Mon", condition: .sunny,        high: 99,  low: 81),
-                    DayForecast(dayName: "Tue", condition: .sunny,        high: 101, low: 83),
-                    DayForecast(dayName: "Wed", condition: .sunny,        high: 98,  low: 80),
-                    DayForecast(dayName: "Thu", condition: .partlyCloudy, high: 94,  low: 78),
-                    DayForecast(dayName: "Fri", condition: .sunny,        high: 102, low: 82),
-                ],
-                cityName: "Arizona"
-            )
-
-        // NEW: Miami
-        case "Miami":
-            return WeatherData(
-                temperature: 88, feelsLike: 96, high: 92, low: 78,
-                condition: .sunny, humidity: 85, windSpeed: 12,
-                forecast: [
-                    DayForecast(dayName: "Mon", condition: .sunny,        high: 90, low: 79),
-                    DayForecast(dayName: "Tue", condition: .stormy,       high: 85, low: 76),
-                    DayForecast(dayName: "Wed", condition: .rainy,        high: 83, low: 75),
-                    DayForecast(dayName: "Thu", condition: .sunny,        high: 91, low: 78),
-                    DayForecast(dayName: "Fri", condition: .partlyCloudy, high: 89, low: 77),
-                ],
-                cityName: "Miami"
-            )
-
-        // NEW: Chicago
-        case "Chicago":
-            return WeatherData(
-                temperature: 45, feelsLike: 38, high: 50, low: 36,
-                condition: .windy, humidity: 62, windSpeed: 28,
-                forecast: [
-                    DayForecast(dayName: "Mon", condition: .windy,        high: 47, low: 34),
-                    DayForecast(dayName: "Tue", condition: .cloudy,       high: 49, low: 37),
-                    DayForecast(dayName: "Wed", condition: .rainy,        high: 44, low: 33),
-                    DayForecast(dayName: "Thu", condition: .snowy,        high: 38, low: 28),
-                    DayForecast(dayName: "Fri", condition: .partlyCloudy, high: 52, low: 38),
-                ],
-                cityName: "Chicago"
-            )
-
-        default:
-            return WeatherData(
-                temperature: 68, feelsLike: 66, high: 72, low: 58,
-                condition: .partlyCloudy, humidity: 50, windSpeed: 10,
-                forecast: [
-                    DayForecast(dayName: "Mon", condition: .sunny,        high: 70, low: 58),
-                    DayForecast(dayName: "Tue", condition: .partlyCloudy, high: 68, low: 57),
-                    DayForecast(dayName: "Wed", condition: .cloudy,       high: 64, low: 55),
-                    DayForecast(dayName: "Thu", condition: .rainy,        high: 60, low: 52),
-                    DayForecast(dayName: "Fri", condition: .sunny,        high: 72, low: 59),
-                ],
-                cityName: cityName
-            )
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
         }
-    }
-}
 
-// MARK: - WeatherKit adapter (stubbed — enable when WeatherKit entitlement is added)
-/*
-import WeatherKit
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
 
-final class WeatherKitService: WeatherServiceProtocol {
-    private let service = WeatherService.shared
+        let current = json["current"] as? [String: Any] ?? [:]
+        let daily = json["daily"] as? [String: Any] ?? [:]
 
-    func fetchWeather(for location: CLLocation, cityName: String) async throws -> WeatherData {
-        let weather = try await service.weather(for: location)
-        let current = weather.currentWeather
-        let daily   = weather.dailyForecast.forecast.prefix(5)
+        let temperature = Int(current["temperature_2m"] as? Double ?? 0)
+        let feelsLike = Int(current["apparent_temperature"] as? Double ?? 0)
+        let humidity = Int(current["relative_humidity_2m"] as? Double ?? 0)
+        let windSpeed = Int(current["wind_speed_10m"] as? Double ?? 0)
+        let weatherCode = current["weather_code"] as? Int ?? 0
+
+        let highs = daily["temperature_2m_max"] as? [Double] ?? []
+        let lows = daily["temperature_2m_min"] as? [Double] ?? []
+        let dailyCodes = daily["weather_code"] as? [Int] ?? []
+        let dates = daily["time"] as? [String] ?? []
+
+        let todayHigh = highs.first.map { Int($0) } ?? temperature
+        let todayLow = lows.first.map { Int($0) } ?? temperature
+
+        let dayFormatter = DateFormatter()
+        dayFormatter.dateFormat = "yyyy-MM-dd"
+        let nameFormatter = DateFormatter()
+        nameFormatter.dateFormat = "EEE"
+
+        var forecastDays: [DayForecast] = []
+        // Skip index 0 (today) and take next 5 days
+        for i in 1..<min(6, dates.count) {
+            let dayName: String
+            if let date = dayFormatter.date(from: dates[i]) {
+                dayName = nameFormatter.string(from: date)
+            } else {
+                dayName = "—"
+            }
+            forecastDays.append(DayForecast(
+                dayName: dayName,
+                condition: Self.mapWeatherCode(i < dailyCodes.count ? dailyCodes[i] : 0),
+                high: i < highs.count ? Int(highs[i]) : 0,
+                low: i < lows.count ? Int(lows[i]) : 0
+            ))
+        }
 
         return WeatherData(
-            temperature: Int(current.temperature.converted(to: .fahrenheit).value),
-            feelsLike:   Int(current.apparentTemperature.converted(to: .fahrenheit).value),
-            high:        Int(daily.first?.highTemperature.converted(to: .fahrenheit).value ?? 0),
-            low:         Int(daily.first?.lowTemperature.converted(to: .fahrenheit).value ?? 0),
-            condition:   mapCondition(current.condition),
-            humidity:    Int(current.humidity * 100),
-            windSpeed:   Int(current.wind.speed.converted(to: .milesPerHour).value),
-            forecast:    daily.enumerated().map { i, d in
-                DayForecast(
-                    dayName:   shortDayName(d.date),
-                    condition: mapCondition(d.condition),
-                    high:      Int(d.highTemperature.converted(to: .fahrenheit).value),
-                    low:       Int(d.lowTemperature.converted(to: .fahrenheit).value)
-                )
-            },
+            temperature: temperature,
+            feelsLike: feelsLike,
+            high: todayHigh,
+            low: todayLow,
+            condition: Self.mapWeatherCode(weatherCode),
+            humidity: humidity,
+            windSpeed: windSpeed,
+            forecast: forecastDays,
             cityName: cityName
         )
     }
 
-    private func mapCondition(_ c: WeatherCondition) -> WeatherCondition { ... }
-    private func shortDayName(_ date: Date) -> String {
-        let f = DateFormatter(); f.dateFormat = "EEE"; return f.string(from: date)
+    func searchCities(query: String) async throws -> [CitySearchResult] {
+        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "https://geocoding-api.open-meteo.com/v1/search?name=\(encoded)&count=8&language=en&format=json") else {
+            return []
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+        let results = json["results"] as? [[String: Any]] ?? []
+
+        return results.compactMap { item in
+            guard let id = item["id"] as? Int,
+                  let name = item["name"] as? String,
+                  let lat = item["latitude"] as? Double,
+                  let lon = item["longitude"] as? Double else { return nil }
+            let country = item["country"] as? String ?? ""
+            let admin = item["admin1"] as? String ?? ""
+            return CitySearchResult(id: id, name: name, country: country, admin: admin, latitude: lat, longitude: lon)
+        }
+    }
+
+    private static func mapWeatherCode(_ code: Int) -> WeatherCondition {
+        switch code {
+        case 0, 1:          return .sunny
+        case 2:             return .partlyCloudy
+        case 3:             return .cloudy
+        case 45, 48:        return .foggy
+        case 51...57:       return .rainy
+        case 61...67:       return .rainy
+        case 71...77:       return .snowy
+        case 80...82:       return .rainy
+        case 85, 86:        return .snowy
+        case 95:            return .stormy
+        case 96, 99:        return .stormy
+        default:            return .partlyCloudy
+        }
     }
 }
-*/
