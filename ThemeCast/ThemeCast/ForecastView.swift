@@ -6,7 +6,6 @@ struct ForecastView: View {
 
     var body: some View {
         ZStack {
-            // Match the app's gradient background
             LinearGradient(
                 colors: vm.theme.gradientColors,
                 startPoint: .topLeading,
@@ -16,18 +15,14 @@ struct ForecastView: View {
 
             VStack(spacing: 0) {
 
-                // MARK: - Header
+                // MARK: Header
                 HStack {
-                    Text("5-Day Forecast")
+                    Text("Forecast")
                         .font(.system(size: 18, weight: .semibold, design: .rounded))
                         .tracking(1.5)
                         .foregroundColor(.white)
-
                     Spacer()
-
-                    Button {
-                        dismiss()
-                    } label: {
+                    Button { dismiss() } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 22))
                             .foregroundColor(.white.opacity(0.7))
@@ -35,7 +30,7 @@ struct ForecastView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
-                .padding(.bottom, 16)
+                .padding(.bottom, 8)
 
                 // City + theme pill
                 VStack(spacing: 6) {
@@ -55,29 +50,83 @@ struct ForecastView: View {
                         .background(.white.opacity(0.18))
                         .clipShape(Capsule())
                 }
-                .padding(.bottom, 24)
+                .padding(.bottom, 16)
 
-                // MARK: - Forecast Cards
-                if let forecast = vm.weather?.forecast {
+                ScrollView {
                     VStack(spacing: 12) {
-                        ForEach(forecast) { day in
-                            ForecastRowView(
-                                day: day,
-                                icon: vm.theme.icon(for: day.condition),
-                                vm: vm
-                            )
+
+                        // MARK: Hourly section
+                        if let hourly = vm.weather?.hourlyForecast, !hourly.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("NEXT 24 HOURS")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(.white.opacity(0.5))
+                                    .tracking(1.5)
+                                    .padding(.horizontal, 4)
+
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 4) {
+                                        ForEach(hourly) { hour in
+                                            HourlyCell(hour: hour, icon: vm.theme.icon(for: hour.condition), vm: vm)
+                                        }
+                                    }
+                                    .padding(.horizontal, 4)
+                                }
+                            }
+                            .padding(14)
+                            .background(.white.opacity(0.12))
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
+
+                        // MARK: 5-day section
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("5-DAY FORECAST")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.white.opacity(0.5))
+                                .tracking(1.5)
+                                .padding(.horizontal, 4)
+
+                            if let forecast = vm.weather?.forecast {
+                                VStack(spacing: 8) {
+                                    ForEach(forecast) { day in
+                                        ForecastRowView(day: day, icon: vm.theme.icon(for: day.condition), vm: vm)
+                                    }
+                                }
+                            } else {
+                                ProgressView().tint(.white).frame(maxWidth: .infinity)
+                            }
+                        }
+                        .padding(14)
+                        .background(.white.opacity(0.12))
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                        // MARK: Sunrise / Sunset section
+                        if let w = vm.weather {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("SUN")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(.white.opacity(0.5))
+                                    .tracking(1.5)
+                                    .padding(.horizontal, 4)
+
+                                HStack(spacing: 0) {
+                                    SunTimeView(icon: "sunrise.fill", label: "Sunrise", time: w.sunrise)
+                                    Divider().background(.white.opacity(0.2)).frame(height: 44)
+                                    SunTimeView(icon: "sunset.fill",  label: "Sunset",  time: w.sunset)
+                                }
+                                .padding(.vertical, 8)
+                            }
+                            .padding(14)
+                            .background(.white.opacity(0.12))
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
                         }
                     }
                     .padding(.horizontal, 16)
-                } else {
-                    Spacer()
-                    ProgressView()
-                        .tint(.white)
-                        .scaleEffect(1.4)
-                    Spacer()
+                    .padding(.bottom, 24)
                 }
-
-                Spacer()
             }
         }
         .preferredColorScheme(.dark)
@@ -93,54 +142,38 @@ struct ForecastRowView: View {
 
     var body: some View {
         HStack {
-            // Day name
             Text(day.dayName)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(.white)
                 .frame(width: 40, alignment: .leading)
 
-            // Themed icon
             Text(icon)
                 .font(.system(size: 28))
                 .frame(width: 44)
 
-            // Condition
             Text(day.condition.rawValue)
                 .font(.system(size: 13, weight: .regular))
                 .foregroundColor(.white.opacity(0.7))
 
             Spacer()
 
-            // High / Low
             HStack(spacing: 12) {
                 VStack(spacing: 2) {
-                    Text("H")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(.white.opacity(0.5))
-                    Text(vm.displayTemp(day.high))
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.white)
+                    Text("H").font(.system(size: 9, weight: .medium)).foregroundColor(.white.opacity(0.5))
+                    Text(vm.displayTemp(day.high)).font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
                 }
-
                 VStack(spacing: 2) {
-                    Text("L")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(.white.opacity(0.5))
-                    Text(vm.displayTemp(day.low))
-                        .font(.system(size: 15, weight: .light))
-                        .foregroundColor(.white.opacity(0.6))
+                    Text("L").font(.system(size: 9, weight: .medium)).foregroundColor(.white.opacity(0.5))
+                    Text(vm.displayTemp(day.low)).font(.system(size: 15, weight: .light)).foregroundColor(.white.opacity(0.6))
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(.white.opacity(0.12))
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 10)
+        .background(.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
-
-// MARK: - Preview
 
 #Preview {
     ForecastView(vm: WeatherViewModel())
