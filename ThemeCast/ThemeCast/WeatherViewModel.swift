@@ -29,12 +29,14 @@ final class WeatherViewModel: ObservableObject {
     private let weatherService: WeatherServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private var searchTask: Task<Void, Never>?
+    private var lastLocation: CLLocation?
+    private var lastCityName: String?
+    private var lastTheme: LocationTheme?
 
     // MARK: Init
     init(locationManager: LocationManager? = nil,
          weatherService: WeatherServiceProtocol = OpenMeteoWeatherService()) {
         let locationManager = locationManager ?? LocationManager()
-
         self.locationManager = locationManager
         self.weatherService  = weatherService
 
@@ -49,7 +51,6 @@ final class WeatherViewModel: ObservableObject {
             .map { $0?.errorDescription }
             .assign(to: &$errorMessage)
 
-        // Load the first theme city on launch
         loadThemeCity(LocationTheme.all[0])
     }
 
@@ -61,23 +62,16 @@ final class WeatherViewModel: ObservableObject {
 
     func searchCity() {
         let query = searchText.trimmingCharacters(in: .whitespaces)
-        guard query.count >= 2 else {
-            searchResults = []
-            return
-        }
+        guard query.count >= 2 else { searchResults = []; return }
 
         searchTask?.cancel()
         searchTask = Task {
             isSearching = true
             do {
                 let results = try await weatherService.searchCities(query: query)
-                if !Task.isCancelled {
-                    searchResults = results
-                }
+                if !Task.isCancelled { searchResults = results }
             } catch {
-                if !Task.isCancelled {
-                    searchResults = []
-                }
+                if !Task.isCancelled { searchResults = [] }
             }
             isSearching = false
         }
@@ -88,8 +82,26 @@ final class WeatherViewModel: ObservableObject {
         searchResults = []
         let location = CLLocation(latitude: city.latitude, longitude: city.longitude)
         let detectedTheme = LocationTheme.theme(forLatitude: city.latitude)
-
         loadWeather(for: location, cityName: city.name, theme: detectedTheme)
+    }
+
+    // Pull to refresh — re-fetches current weather
+    func refresh() async {
+        guard let location = lastLocation,
+              let cityName = lastCityName,
+              let theme    = lastTheme else { return }
+        isLoading = true
+        errorMessage = nil
+        do {
+            let data = try await weatherService.fetchWeather(for: location, cityName: cityName)
+            withAnimation(.easeInOut(duration: 0.6)) {
+                self.weather = data
+                self.theme   = theme
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
     }
 
     func displayTemp(_ fahrenheit: Int) -> String {
@@ -107,7 +119,6 @@ final class WeatherViewModel: ObservableObject {
         guard let location = placemark.location else { return }
         let detectedTheme = LocationTheme.theme(for: placemark)
         let cityName = placemark.locality ?? detectedTheme.regionName
-
         loadWeather(for: location, cityName: cityName, theme: detectedTheme)
     }
 
@@ -117,7 +128,12 @@ final class WeatherViewModel: ObservableObject {
         loadWeather(for: location, cityName: themeEntry.regionName, theme: themeEntry)
     }
 
-    private func loadWeather(for location: CLLocation, cityName: String, theme: LocationTheme) {
+    func loadWeather(for location: CLLocation, cityName: String, theme: LocationTheme) {
+        // Save for pull-to-refresh
+        lastLocation = location
+        lastCityName = cityName
+        lastTheme    = theme
+
         isLoading = true
         errorMessage = nil
         Task {
