@@ -5,6 +5,11 @@ import SwiftUI
 struct ForecastDayView: View {
     let day: DayForecast
     let icon: String
+    var isCelsius: Bool = false
+
+    private func temp(_ f: Int) -> String {
+        isCelsius ? "\((f - 32) * 5 / 9)°" : "\(f)°"
+    }
 
     var body: some View {
         VStack(spacing: 5) {
@@ -16,11 +21,11 @@ struct ForecastDayView: View {
             Text(icon)
                 .font(.system(size: 22))
 
-            Text("\(day.high)°")
+            Text(temp(day.high))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.white)
 
-            Text("\(day.low)°")
+            Text(temp(day.low))
                 .font(.system(size: 11, weight: .light))
                 .foregroundColor(.white.opacity(0.5))
         }

@@ -81,7 +81,7 @@ final class WeatherViewModel: ObservableObject {
         searchText = ""
         searchResults = []
         let location = CLLocation(latitude: city.latitude, longitude: city.longitude)
-        let detectedTheme = LocationTheme.theme(forLatitude: city.latitude)
+        let detectedTheme = LocationTheme.theme(for: city)
         loadWeather(for: location, cityName: city.name, theme: detectedTheme)
     }
 
@@ -128,7 +128,7 @@ final class WeatherViewModel: ObservableObject {
         loadWeather(for: location, cityName: themeEntry.regionName, theme: themeEntry)
     }
 
-    func loadWeather(for location: CLLocation, cityName: String, theme: LocationTheme) {
+    private func loadWeather(for location: CLLocation, cityName: String, theme: LocationTheme) {
         // Save for pull-to-refresh
         lastLocation = location
         lastCityName = cityName
@@ -160,6 +160,25 @@ final class WeatherViewModel: ObservableObject {
     var formattedHighLow: String {
         guard let w = weather else { return "" }
         return "H: \(displayTemp(w.high))  ·  L: \(displayTemp(w.low))"
+    }
+
+    var formattedWindSpeed: String {
+        guard let w = weather else { return "--" }
+        if isCelsius {
+            return "\(Int((Double(w.windSpeed) * 1.60934).rounded())) km/h"
+        } else {
+            return "\(w.windSpeed) mph"
+        }
+    }
+
+    func uvLabel(for index: Int) -> String {
+        switch index {
+        case 0...2:  return "Low"
+        case 3...5:  return "Moderate"
+        case 6...7:  return "High"
+        case 8...10: return "Very High"
+        default:     return "Extreme"
+        }
     }
 
     var themedMainIcon: String {

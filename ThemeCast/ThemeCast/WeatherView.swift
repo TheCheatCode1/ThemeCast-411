@@ -220,9 +220,9 @@ struct WeatherView: View {
                 // Stats row — now includes UV index
                 HStack(spacing: 16) {
                     WeatherStatView(icon: "humidity.fill",      value: "\(w.humidity)%",                          label: "Humidity")
-                    WeatherStatView(icon: "wind",                value: "\(w.windSpeed) mph",                     label: "Wind")
+                    WeatherStatView(icon: "wind",                value: vm.formattedWindSpeed,                    label: "Wind")
                     WeatherStatView(icon: "thermometer.medium", value: vm.displayTemp(w.feelsLike),               label: "Feels like")
-                    WeatherStatView(icon: "sun.max.fill",        value: "UV \(w.uvIndex)",                        label: OpenMeteoWeatherService.uvLabel(w.uvIndex))
+                    WeatherStatView(icon: "sun.max.fill",        value: "UV \(w.uvIndex)",                        label: vm.uvLabel(for: w.uvIndex))
                 }
                 .padding(.top, 14)
             }
@@ -293,7 +293,7 @@ struct WeatherView: View {
             if let forecast = vm.weather?.forecast {
                 HStack(spacing: 0) {
                     ForEach(forecast) { day in
-                        ForecastDayView(day: day, icon: vm.theme.icon(for: day.condition))
+                        ForecastDayView(day: day, icon: vm.theme.icon(for: day.condition), isCelsius: vm.isCelsius)
                         if day.id != forecast.last?.id {
                             Divider().background(.white.opacity(0.15)).frame(height: 44)
                         }
@@ -320,16 +320,17 @@ struct WeatherView: View {
                     Button {
                         withAnimation(.easeInOut(duration: 0.4)) { vm.selectedThemeIndex = i }
                     } label: {
+                        let isActive = vm.theme.regionName == t.regionName
                         Text(t.regionName)
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(vm.selectedThemeIndex == i ? .white : .white.opacity(0.6))
+                            .foregroundColor(isActive ? .white : .white.opacity(0.6))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
-                            .background(vm.selectedThemeIndex == i ? .white.opacity(0.28) : .white.opacity(0.10))
+                            .background(isActive ? .white.opacity(0.28) : .white.opacity(0.10))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(.white.opacity(vm.selectedThemeIndex == i ? 0.5 : 0.15), lineWidth: 1)
+                                    .stroke(.white.opacity(isActive ? 0.5 : 0.15), lineWidth: 1)
                             )
                     }
                 }
@@ -400,5 +401,173 @@ struct SunTimeView: View {
                 .foregroundColor(.white.opacity(0.5))
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Forecast Sheet
+
+struct ForecastView: View {
+    @ObservedObject var vm: WeatherViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: vm.theme.gradientColors,
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                HStack {
+                    Text("5-Day Forecast")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
+
+                if let forecast = vm.weather?.forecast {
+                    ScrollView {
+                        VStack(spacing: 10) {
+                            ForEach(forecast) { day in
+                                HStack(spacing: 16) {
+                                    Text(day.dayName)
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundColor(.white.opacity(0.8))
+                                        .frame(width: 40, alignment: .leading)
+                                    Text(vm.theme.icon(for: day.condition))
+                                        .font(.system(size: 26))
+                                    Text(day.condition.rawValue)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.7))
+                                    Spacer()
+                                    Text(vm.displayTemp(day.high))
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundColor(.white)
+                                    Text(vm.displayTemp(day.low))
+                                        .font(.system(size: 15, weight: .light))
+                                        .foregroundColor(.white.opacity(0.5))
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                                .background(.white.opacity(0.12))
+                                .background(.ultraThinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 32)
+                    }
+                } else {
+                    Spacer()
+                    ProgressView().tint(.white)
+                    Spacer()
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+}
+
+// MARK: - Settings Sheet
+
+struct SettingsView: View {
+    @ObservedObject var vm: WeatherViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: vm.theme.gradientColors,
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Settings")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
+
+                ScrollView {
+                    VStack(spacing: 10) {
+                        settingRow {
+                            Text("Temperature Unit")
+                                .font(.system(size: 15))
+                                .foregroundColor(.white)
+                            Spacer()
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) { vm.isCelsius.toggle() }
+                            } label: {
+                                Text(vm.isCelsius ? "°C" : "°F")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 6)
+                                    .background(.white.opacity(0.25))
+                                    .clipShape(Capsule())
+                            }
+                        }
+
+                        settingRow {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Weather Data")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(.white)
+                                Text("Powered by Open-Meteo (open-meteo.com)")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                            Spacer()
+                        }
+
+                        settingRow {
+                            Text("Version")
+                                .font(.system(size: 15))
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text("1.0.0")
+                                .font(.system(size: 14))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 32)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func settingRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        HStack {
+            content()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(.white.opacity(0.12))
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }

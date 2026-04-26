@@ -11,11 +11,11 @@ struct WeatherData {
     let condition: WeatherCondition
     let humidity: Int
     let windSpeed: Int
-    let uvIndex: Int              // NEW
-    let sunrise: String           // NEW e.g. "6:42 AM"
-    let sunset: String            // NEW e.g. "7:58 PM"
+    let uvIndex: Int
+    let sunrise: String
+    let sunset: String
     let forecast: [DayForecast]
-    let hourlyForecast: [HourForecast]  // NEW
+    let hourlyForecast: [HourForecast]
     let cityName: String
 }
 
@@ -27,10 +27,9 @@ struct DayForecast: Identifiable {
     let low: Int
 }
 
-// NEW: Hourly forecast model
 struct HourForecast: Identifiable {
     let id = UUID()
-    let hour: String        // e.g. "3 PM"
+    let hour: String
     let condition: WeatherCondition
     let temperature: Int
 }
@@ -61,6 +60,39 @@ protocol WeatherServiceProtocol: Sendable {
 // MARK: - Open-Meteo Weather Service
 
 final class OpenMeteoWeatherService: WeatherServiceProtocol {
+
+    // MARK: - Cached formatters (DateFormatter is expensive to create)
+
+    private static let dayParseFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
+    private static let dayNameFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US")
+        f.dateFormat = "EEE"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
+    private static let sunParseFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        return f
+    }()
+
+    private static let sunDisplayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a"
+        return f
+    }()
+
+    // MARK: - fetchWeather
 
     func fetchWeather(for location: CLLocation, cityName: String) async throws -> WeatherData {
         let lat = location.coordinate.latitude
@@ -104,12 +136,10 @@ final class OpenMeteoWeatherService: WeatherServiceProtocol {
         let sunrise   = Self.formatSunTime(sunrises.first ?? "")
         let sunset    = Self.formatSunTime(sunsets.first  ?? "")
 
-        let dayFormatter  = DateFormatter(); dayFormatter.dateFormat  = "yyyy-MM-dd"
-        let nameFormatter = DateFormatter(); nameFormatter.dateFormat = "EEE"
-
         var forecastDays: [DayForecast] = []
         for i in 1..<min(6, dates.count) {
-            let dayName = dayFormatter.date(from: dates[i]).map { nameFormatter.string(from: $0) } ?? "—"
+            let dayName = Self.dayParseFormatter.date(from: dates[i])
+                .map { Self.dayNameFormatter.string(from: $0) } ?? "—"
             forecastDays.append(DayForecast(
                 dayName:   dayName,
                 condition: Self.mapWeatherCode(i < dailyCodes.count ? dailyCodes[i] : 0),
@@ -118,20 +148,28 @@ final class OpenMeteoWeatherService: WeatherServiceProtocol {
             ))
         }
 
-        // Hourly — next 24 hours from current hour
+        // Hourly — use the location's timezone so hours display correctly for any searched city
+        let tzIdentifier = json["timezone"] as? String ?? "UTC"
+        let locationTZ = TimeZone(identifier: tzIdentifier) ?? .current
+
+        let isoFormatter = DateFormatter()
+        isoFormatter.locale = Locale(identifier: "en_US_POSIX")
+        isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        isoFormatter.timeZone = locationTZ
+
+        let hourFormatter = DateFormatter()
+        hourFormatter.dateFormat = "h a"
+        hourFormatter.timeZone = locationTZ
+
         let hourlyTemps = hourly["temperature_2m"] as? [Double] ?? []
         let hourlyCodes = hourly["weather_code"]   as? [Int]    ?? []
         let hourlyTimes = hourly["time"]           as? [String] ?? []
 
-        let isoFormatter  = DateFormatter(); isoFormatter.dateFormat  = "yyyy-MM-dd'T'HH:mm"
-        let hourFormatter = DateFormatter(); hourFormatter.dateFormat = "h a"
-        let now = Date()
-        let calendar = Calendar.current
-        let currentHour = calendar.component(.hour, from: now)
-
+        // Find the first entry at or within the last 30 minutes
+        let lookbackDate = Date().addingTimeInterval(-1800)
         var startIndex = 0
         for (i, timeStr) in hourlyTimes.enumerated() {
-            if let t = isoFormatter.date(from: timeStr), calendar.component(.hour, from: t) == currentHour {
+            if let t = isoFormatter.date(from: timeStr), t >= lookbackDate {
                 startIndex = i
                 break
             }
@@ -139,8 +177,9 @@ final class OpenMeteoWeatherService: WeatherServiceProtocol {
 
         var hourlyForecast: [HourForecast] = []
         for i in startIndex..<min(startIndex + 24, hourlyTemps.count) {
-            let timeStr  = i < hourlyTimes.count ? hourlyTimes[i] : ""
-            let hourLabel = isoFormatter.date(from: timeStr).map { hourFormatter.string(from: $0) } ?? "—"
+            let timeStr   = i < hourlyTimes.count ? hourlyTimes[i] : ""
+            let hourLabel = isoFormatter.date(from: timeStr)
+                .map { hourFormatter.string(from: $0) } ?? "—"
             hourlyForecast.append(HourForecast(
                 hour:        hourLabel,
                 condition:   Self.mapWeatherCode(i < hourlyCodes.count ? hourlyCodes[i] : 0),
@@ -164,6 +203,8 @@ final class OpenMeteoWeatherService: WeatherServiceProtocol {
             cityName:       cityName
         )
     }
+
+    // MARK: - searchCities
 
     func searchCities(query: String) async throws -> [CitySearchResult] {
         guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
@@ -191,13 +232,11 @@ final class OpenMeteoWeatherService: WeatherServiceProtocol {
     // MARK: - Helpers
 
     private static func formatSunTime(_ isoString: String) -> String {
-        let input  = DateFormatter(); input.dateFormat  = "yyyy-MM-dd'T'HH:mm"
-        let output = DateFormatter(); output.dateFormat = "h:mm a"
-        guard let date = input.date(from: isoString) else { return "--" }
-        return output.string(from: date)
+        guard let date = sunParseFormatter.date(from: isoString) else { return "--" }
+        return sunDisplayFormatter.string(from: date)
     }
 
-    static func mapWeatherCode(_ code: Int) -> WeatherCondition {
+    private static func mapWeatherCode(_ code: Int) -> WeatherCondition {
         switch code {
         case 0, 1:    return .sunny
         case 2:       return .partlyCloudy
@@ -209,16 +248,6 @@ final class OpenMeteoWeatherService: WeatherServiceProtocol {
         case 85, 86:  return .snowy
         case 95...99: return .stormy
         default:      return .partlyCloudy
-        }
-    }
-
-    static func uvLabel(_ index: Int) -> String {
-        switch index {
-        case 0...2:  return "Low"
-        case 3...5:  return "Moderate"
-        case 6...7:  return "High"
-        case 8...10: return "Very High"
-        default:     return "Extreme"
         }
     }
 }
