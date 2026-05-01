@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct SettingsView: View {
+struct LegacySettingsView: View {
     @ObservedObject var vm: WeatherViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -40,26 +40,26 @@ struct SettingsView: View {
                 VStack(spacing: 12) {
 
                     // Temperature Unit
-                    SettingsRow(icon: "thermometer.medium", title: "Temperature Unit") {
+                    LegacySettingsRow(icon: "thermometer.medium", title: "Temperature Unit") {
                         HStack(spacing: 8) {
-                            ToggleChip(label: "°F", isSelected: !vm.isCelsius) {
+                            LegacyToggleChip(label: "°F", isSelected: !vm.isCelsius) {
                                 vm.isCelsius = false
                             }
-                            ToggleChip(label: "°C", isSelected: vm.isCelsius) {
+                            LegacyToggleChip(label: "°C", isSelected: vm.isCelsius) {
                                 vm.isCelsius = true
                             }
                         }
                     }
 
                     // Current Theme Info
-                    SettingsRow(icon: "paintpalette.fill", title: "Current Theme") {
+                    LegacySettingsRow(icon: "paintpalette.fill", title: "Current Theme") {
                         Text("\(vm.theme.label)  \(vm.theme.emoji)")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(.white.opacity(0.8))
                     }
 
                     // Current Location
-                    SettingsRow(icon: "location.fill", title: "Location") {
+                    LegacySettingsRow(icon: "location.fill", title: "Location") {
                         Button {
                             vm.requestUserLocation()
                             dismiss()
@@ -75,7 +75,7 @@ struct SettingsView: View {
                     }
 
                     // About
-                    SettingsRow(icon: "info.circle.fill", title: "App") {
+                    LegacySettingsRow(icon: "info.circle.fill", title: "App") {
                         Text("ThemeCast v1.0")
                             .font(.system(size: 13))
                             .foregroundColor(.white.opacity(0.6))
@@ -90,9 +90,9 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Settings Row
+// MARK: - Legacy Settings Row
 
-struct SettingsRow<Content: View>: View {
+struct LegacySettingsRow<Content: View>: View {
     let icon: String
     let title: String
     let content: () -> Content
@@ -126,9 +126,9 @@ struct SettingsRow<Content: View>: View {
     }
 }
 
-// MARK: - Toggle Chip
+// MARK: - Legacy Toggle Chip
 
-struct ToggleChip: View {
+struct LegacyToggleChip: View {
     let label: String
     let isSelected: Bool
     let action: () -> Void
@@ -153,5 +153,5 @@ struct ToggleChip: View {
 // MARK: - Preview
 
 #Preview {
-    SettingsView(vm: WeatherViewModel())
+    LegacySettingsView(vm: WeatherViewModel())
 }
